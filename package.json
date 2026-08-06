@@ -1,0 +1,20 @@
+{
+  "name": "coopwelcome",
+  "version": "1.0.0",
+  "description": "CoopWelcome — welcome & verification bot with 60+ slash commands and 40+ prefix commands.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js",
+    "register:guild": "node deploy-commands.js --guild",
+    "dev": "node index.js"
+  },
+  "engines": { "node": ">=18.0.0" },
+  "keywords": ["discord", "bot", "welcome", "verification", "roles", "coopwelcome"],
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  }
+}
