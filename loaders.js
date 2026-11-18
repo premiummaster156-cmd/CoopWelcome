@@ -1,63 +1,57 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const logger = require("./utils/logger");
 
-function walk(dir) {
-  const results = [];
-  if (!fs.existsSync(dir)) return results;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) results.push(...walk(full));
-    else if (entry.name.endsWith(".js")) results.push(full);
+function walk(directory) {
+  if (!fs.existsSync(directory)) return [];
+  const files = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...walk(absolutePath));
+    else if (entry.isFile() && entry.name.endsWith(".js")) files.push(absolutePath);
   }
-  return results;
+  return files.sort((a, b) => a.localeCompare(b));
 }
 
-function registerSlash(client, cmd) {
-  if (!cmd || !cmd.data || !cmd.execute) return 0;
-  client.slashCommands.set(cmd.data.name, cmd);
-  return 1;
-}
-
-function registerPrefix(client, cmd) {
-  if (!cmd || !cmd.name || !cmd.execute) return 0;
-  client.prefixCommands.set(cmd.name, cmd);
-  if (cmd.aliases) {
-    for (const alias of cmd.aliases) client.prefixAliases.set(alias, cmd.name);
+function registerSlash(client, command, sourceFile = "unknown file") {
+  if (!command?.data || typeof command.data.toJSON !== "function" || typeof command.execute !== "function") {
+    throw new TypeError("Invalid slash command export in " + sourceFile);
   }
+  const definition = command.data.toJSON();
+  if (!definition.name || !definition.description) {
+    throw new TypeError("Slash command in " + sourceFile + " is missing its name or description");
+  }
+  if (client.slashCommands.has(definition.name)) {
+    throw new Error("Duplicate slash command /" + definition.name + " found in " + sourceFile);
+  }
+  client.slashCommands.set(definition.name, command);
   return 1;
 }
 
 function loadSlashCommands(client) {
-  const dir = path.join(__dirname, "commands", "slash");
-  const files = walk(dir);
+  if (!client?.slashCommands || typeof client.slashCommands.set !== "function") {
+    throw new TypeError("The client must provide a Discord.js Collection named slashCommands");
+  }
+  const directory = path.join(__dirname, "commands", "slash");
+  const files = walk(directory);
+  if (files.length === 0) throw new Error("No slash-command modules were found in commands/slash.");
+
   let count = 0;
   for (const file of files) {
+    let exported;
     try {
-      const loaded = require(file);
-      const list = Array.isArray(loaded) ? loaded : [loaded];
-      for (const cmd of list) count += registerSlash(client, cmd);
-    } catch (err) {
-      logger.error(`Failed to load slash command ${file}:`, err.message);
+      exported = require(file);
+    } catch (error) {
+      logger.error("Unable to import slash command file " + file, error);
+      throw error;
     }
+    const commands = Array.isArray(exported) ? exported : [exported];
+    for (const command of commands) count += registerSlash(client, command, path.relative(__dirname, file));
   }
-  logger.success(`Loaded ${count} slash commands.`);
+
+  if (count === 0) throw new Error("No valid slash commands were registered.");
+  logger.success("Loaded " + count + " slash commands.");
+  return count;
 }
 
-function loadPrefixCommands(client) {
-  const dir = path.join(__dirname, "commands", "prefix");
-  const files = walk(dir);
-  let count = 0;
-  for (const file of files) {
-    try {
-      const loaded = require(file);
-      const list = Array.isArray(loaded) ? loaded : [loaded];
-      for (const cmd of list) count += registerPrefix(client, cmd);
-    } catch (err) {
-      logger.error(`Failed to load prefix command ${file}:`, err.message);
-    }
-  }
-  logger.success(`Loaded ${count} prefix commands.`);
-}
-
-module.exports = { loadSlashCommands, loadPrefixCommands, walk };
+module.exports = { walk, registerSlash, loadSlashCommands };
