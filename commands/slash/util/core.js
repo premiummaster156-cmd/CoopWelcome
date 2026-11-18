@@ -36,7 +36,6 @@ module.exports = [
           { name: "Servers", value: String(interaction.client.guilds.cache.size), inline: true },
           { name: "Users", value: String(interaction.client.users.cache.size), inline: true },
           { name: "Slash", value: String(interaction.client.slashCommands.size), inline: true },
-          { name: "Prefix", value: String(interaction.client.prefixCommands.size), inline: true },
           { name: "Version", value: "1.0.0", inline: true },
         );
       await interaction.reply({ embeds: [embed] });
