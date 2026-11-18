@@ -4,7 +4,6 @@ module.exports = {
   token: process.env.TOKEN,
   clientId: process.env.CLIENT_ID,
   devGuildId: process.env.DEV_GUILD_ID || null,
-  prefix: process.env.PREFIX || "!",
   ownerIds: (process.env.OWNER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean),
   logChannelId: process.env.LOG_CHANNEL_ID || null,
   memberRoleId: process.env.MEMBER_ROLE_ID || null,
